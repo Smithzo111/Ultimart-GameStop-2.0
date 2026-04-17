@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltimartGameStop - Premium Digital Game Store</title>
+    <meta name="description" content="Get premium PC and Steam games delivered directly to your account. 100% Private, Secure, and Guaranteed.">
+    <meta name="theme-color" content="#050505">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.cdnfonts.com" crossorigin>
+    <link href="https://fonts.cdnfonts.com/css/oblata-display" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header id="header">
+        <div class="logo">
+            <a href="#">Ultimart<span class="accent">GameStop</span></a>
+        </div>
+        <div class="search-container">
+            <i class='bx bx-search search-icon'></i>
+            <input type="text" id="searchInput" placeholder="Search any game..." autocomplete="off">
+            <div id="searchResults" class="search-dropdown hidden"></div>
+        </div>
+        <nav class="nav-links">
+            <a href="#how-to-buy">How to Order</a>
+            <a href="#contact">Contact</a>
+            <div id="auth-section">
+                <div id="authButtons" class="auth-buttons">
+                    <button id="signInBtn" class="auth-btn sign-in-btn"><i class='bx bx-user-plus'></i> Sign In</button>
+                    <button id="loginBtn" class="auth-btn login-btn"><i class='bx bxl-google'></i> Login</button>
+                </div>
+                <div id="userProfile" class="hidden">
+                    <span id="userName">User</span>
+                    <button id="profileBtn" class="auth-btn" title="View Profile">
+                        <i class='bx bx-user-circle'></i>
+                    </button>
+                    <button id="logoutBtn" class="auth-btn logout"><i class='bx bx-log-out'></i></button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <section class="hero" id="home">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <h1 class="hero-title">Your Ultimate Library,<br>At A Fraction Of The Price.</h1>
+            <p class="hero-subtitle">Premium PC and Steam games delivered directly to your account.<br>100% Private, Secure, and Guaranteed.</p>
+            <a href="#catalog" class="cta-button">Browse Game Catalog</a>
+        </div>
+    </section>
+
+    <section class="how-to-buy fade-in-section" id="how-to-buy">
+        <h2 class="section-title">How To Buy</h2>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-icon">
+                    <i class='bx bx-grid-alt'></i>
+                </div>
+                <h3>1. Choose</h3>
+                <p>Browse our catalog and choose your game.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-icon">
+                    <i class='bx bxl-instagram'></i>
+                </div>
+                <h3>2. Contact</h3>
+                <p>Click "DM to Buy" to open our Instagram.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-icon">
+                    <i class='bx bx-cloud-download'></i>
+                </div>
+                <h3>3. Receive</h3>
+                <p>Send a screenshot and receive your game instantly.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="catalog fade-in-section" id="catalog">
+        <h2 class="section-title">Game Catalog</h2>
+
+        <div class="catalog-controls">
+            <div class="sort-container">
+                <label for="sortSelect"><i class='bx bx-sort'></i> Sort By:</label>
+                <select id="sortSelect">
+                    <option value="popular">Most Popular</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="az">A to Z</option>
+                    <option value="za">Z to A</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="no-results" class="hidden">
+            <i class='bx bx-ghost'></i>
+            <p>No games found matching your search.</p>
+        </div>
+
+        <div id="catalog-container"></div>
+    </section>
+
+    <div id="profilePage" class="modal-page hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>My Profile</h2>
+                <button class="close-btn" onclick="document.getElementById('profilePage').classList.add('hidden')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="profile-container">
+                <div id="profileInfo" class="profile-info"></div>
+                <div id="ordersList" class="orders-list">
+                    <h3>Track Orders</h3>
+                    <p class="order-note">Your confirmed orders and their latest status will show here.</p>
+                    <div id="ordersContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="signInModal" class="modal-page hidden">
+        <div class="modal-content auth-modal">
+            <div class="modal-header">
+                <h2>Create Your Account</h2>
+                <button class="close-btn" onclick="document.getElementById('signInModal').classList.add('hidden')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="auth-container">
+                <div class="auth-form">
+                    <p class="auth-subtitle">Sign up with Google to get started</p>
+                    <button id="signInGoogleBtn" class="google-btn">
+                        <i class='bx bxl-google'></i> Sign In with Google
+                    </button>
+                    <p id="signInStatus" class="auth-status"></p>
+                </div>
+
+                <div id="basicInfoForm" class="basic-info-form hidden">
+                    <h3>Complete Your Profile</h3>
+                    <input type="text" id="signUpUsername" placeholder="Username" required>
+                    <input type="text" id="signUpFirstName" placeholder="First Name" required>
+                    <input type="text" id="signUpLastName" placeholder="Last Name" required>
+                    <input type="email" id="signUpEmail" placeholder="Email" readonly>
+                    <button id="submitBasicInfoBtn" class="cta-button">Complete Sign Up</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal-page hidden">
+        <div class="modal-content auth-modal">
+            <div class="modal-header">
+                <h2>Login to Your Account</h2>
+                <button class="close-btn" onclick="document.getElementById('loginModal').classList.add('hidden')"><i class='bx bx-x'></i></button>
+            </div>
+            <div class="auth-container">
+                <div id="googleLoginForm" class="auth-form">
+                    <p class="auth-subtitle">Continue with Google to open your profile and track orders</p>
+                    <button id="loginGoogleBtn" class="google-btn">
+                        <i class='bx bxl-google'></i> Login with Google
+                    </button>
+                    <p id="loginStatus" class="auth-status"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="contact">
+        <div class="footer-content">
+            <div class="footer-logo">
+                <h2>Ultimart<span class="accent">GameStop</span></h2>
+                <p>The Apple Store of Digital Game Reselling</p>
+            </div>
+            <div class="footer-links">
+                <a href="#">About Us</a>
+                <a href="#">Contact</a>
+                <a href="#">Terms of Service</a>
+            </div>
+            <div class="footer-social">
+                <a href="https://www.instagram.com/ultimartgamestop?igsh=MWt0aXB4emo3YW81Yw==" target="_blank"><i class='bx bxl-instagram-alt'></i></a>
+                <a href="https://discordapp.com/users/1222219487223349258" target="_blank"><i class='bx bxl-discord-alt'></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 UltimartGameStop. All rights reserved.</p>
+            <div class="payment-methods">
+                <i class='bx bxl-visa'></i>
+                <i class='bx bxl-mastercard'></i>
+                <i class='bx bxl-paypal'></i>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
