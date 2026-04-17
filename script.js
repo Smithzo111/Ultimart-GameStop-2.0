@@ -17,7 +17,7 @@ const createGame = (name, category, priceNum, imageFile = "") => ({
     category,
     priceNum,
     price: formatCurrency(priceNum),
-    image: imageFile ? `./Source/${imageFile}` : ""
+    imageFile
 });
 
 const baseGamesData = [
@@ -86,6 +86,48 @@ const formatOrderStatus = (status = "pending") =>
     status
         .replace(/_/g, " ")
         .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const encodeAssetPath = (path) => encodeURI(path).replace(/'/g, "%27");
+
+const getGameImageCandidates = (game) => {
+    if (!game?.imageFile) {
+        return [];
+    }
+
+    return [
+        `./Source/${game.imageFile}`,
+        `./${game.imageFile}`
+    ];
+};
+
+const loadBackgroundImage = (element, candidates) => {
+    if (!element || candidates.length === 0) {
+        return;
+    }
+
+    element.classList.add("skeleton");
+
+    const tryCandidate = (index) => {
+        if (index >= candidates.length) {
+            element.classList.remove("skeleton");
+            return;
+        }
+
+        const nextPath = candidates[index];
+        element.style.backgroundImage = `url("${encodeAssetPath(nextPath)}")`;
+
+        const preload = new Image();
+        preload.onload = () => {
+            element.classList.remove("skeleton");
+        };
+        preload.onerror = () => {
+            tryCandidate(index + 1);
+        };
+        preload.src = nextPath;
+    };
+
+    tryCandidate(0);
+};
 
 const OrderManager = {
     async getOrderHistory() {
@@ -256,21 +298,7 @@ const initApp = () => {
 
             const image = document.createElement("div");
             image.className = "game-image";
-
-            if (game.image) {
-                image.classList.add("skeleton");
-                const encodedImage = encodeURI(game.image).replace(/'/g, "%27");
-                image.style.backgroundImage = `url("${encodedImage}")`;
-
-                const preload = new Image();
-                preload.onload = () => {
-                    image.classList.remove("skeleton");
-                };
-                preload.onerror = () => {
-                    image.classList.remove("skeleton");
-                };
-                preload.src = game.image;
-            }
+            loadBackgroundImage(image, getGameImageCandidates(game));
 
             const info = document.createElement("div");
             info.className = "game-info";
@@ -389,14 +417,25 @@ const initApp = () => {
             dropdownGames.forEach((game) => {
                 const item = document.createElement("div");
                 item.className = "search-dropdown-item";
+                const imageWrap = document.createElement("div");
+                imageWrap.className = "search-item-img";
+                loadBackgroundImage(imageWrap, getGameImageCandidates(game));
 
-                item.innerHTML = `
-                    <div class="search-item-img"${game.image ? ` style="background-image: url('${encodeURI(game.image).replace(/'/g, "%27")}')"` : ""}></div>
-                    <div class="search-item-info">
-                        <span class="search-item-title">${escapeHtml(game.name)}</span>
-                        <span class="search-item-price">${escapeHtml(game.price)}</span>
-                    </div>
-                `;
+                const info = document.createElement("div");
+                info.className = "search-item-info";
+
+                const title = document.createElement("span");
+                title.className = "search-item-title";
+                title.textContent = game.name;
+
+                const price = document.createElement("span");
+                price.className = "search-item-price";
+                price.textContent = game.price;
+
+                info.appendChild(title);
+                info.appendChild(price);
+                item.appendChild(imageWrap);
+                item.appendChild(info);
 
                 item.addEventListener("click", () => {
                     searchInput.value = game.name;
