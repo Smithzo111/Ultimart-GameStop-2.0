@@ -261,8 +261,15 @@ const ProfileManager = {
 };
 
 const buildAuthRedirect = (mode) => {
-    const baseUrl = `${window.location.origin}${window.location.pathname}`;
-    return `${baseUrl}?mode=${mode}`;
+    const redirectUrl = new URL(window.location.href);
+    const normalizedPath = redirectUrl.pathname.replace(/index\.html$/, "");
+
+    redirectUrl.hash = "";
+    redirectUrl.search = "";
+    redirectUrl.pathname = normalizedPath || "/";
+    redirectUrl.searchParams.set("mode", mode);
+
+    return redirectUrl.toString();
 };
 
 const initApp = () => {
