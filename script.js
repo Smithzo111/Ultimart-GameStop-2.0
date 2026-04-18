@@ -4,7 +4,7 @@
 
 const SUPABASE_URL = "https://crcvqtkzpzjudxsagzdx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_poYElyzvYvx_pxAnUqk8PA_Pc9MLVOf";
-const INSTAGRAM_ORDER_URL = "https://www.instagram.com/ultimartgamestop?igsh=MWt0aXB4emo3YW81Yw==";
+const INSTAGRAM_ORDER_URL = "https://ig.me/m/officialultimartgamestop";
 
 let supabaseClient;
 let currentUser = null;
