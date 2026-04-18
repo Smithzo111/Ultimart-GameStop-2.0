@@ -181,9 +181,7 @@ const ProfileManager = {
             console.error("Error loading profile:", error);
         }
 
-        const orders = await OrderManager.getOrderHistory();
         const profileInfo = document.getElementById("profileInfo");
-        const ordersContainer = document.getElementById("ordersContainer");
 
         const profileName = [
             profileData?.first_name,
@@ -196,8 +194,6 @@ const ProfileManager = {
             currentUser.user_metadata?.full_name ||
             currentUser.email;
 
-        const totalSpent = orders.reduce((sum, order) => sum + ((order.total_price || 0) / 100), 0);
-
         if (profileInfo) {
             profileInfo.innerHTML = `
                 <div class="profile-header">
@@ -206,57 +202,8 @@ const ProfileManager = {
                     <p>Member since: ${currentUser.created_at ? new Date(currentUser.created_at).toLocaleDateString() : "Recently joined"}</p>
                     <p>${profileData?.username ? `Username: ${escapeHtml(profileData.username)}` : "Google account connected"}</p>
                 </div>
-                <div class="profile-stats">
-                    <div class="stat">
-                        <span class="stat-value">${orders.length}</span>
-                        <span class="stat-label">Tracked Orders</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value">${formatCurrency(totalSpent)}</span>
-                        <span class="stat-label">Total Spent</span>
-                    </div>
-                </div>
             `;
         }
-
-        if (!ordersContainer) {
-            return;
-        }
-
-        if (orders.length === 0) {
-            ordersContainer.innerHTML = `
-                <p class="no-orders">No tracked orders yet. Once an order is added for your account, it will appear here.</p>
-            `;
-            return;
-        }
-
-        ordersContainer.innerHTML = orders.map((order) => {
-            const items = Array.isArray(order.order_items) ? order.order_items : [];
-            const itemsMarkup = items.length
-                ? `
-                    <ul class="order-items">
-                        ${items.map((item) => `
-                            <li>${escapeHtml(item.product_name || "Game")} x${item.quantity || 1}</li>
-                        `).join("")}
-                    </ul>
-                `
-                : '<p class="order-note">Items will appear here once they are attached to the order.</p>';
-
-            return `
-                <div class="order-card">
-                    <div class="order-header">
-                        <span class="order-number">${escapeHtml(order.order_number || "Pending order")}</span>
-                        <span class="order-status status-${escapeHtml((order.status || "pending").toLowerCase())}">${escapeHtml(formatOrderStatus(order.status || "pending"))}</span>
-                    </div>
-                    <div class="order-details">
-                        <p>Date: ${order.created_at ? new Date(order.created_at).toLocaleDateString() : "Not available"}</p>
-                        <p>Total: ${formatCurrency((order.total_price || 0) / 100)}</p>
-                        <p>Payment: ${escapeHtml(formatOrderStatus(order.payment_method || "manual"))}</p>
-                        ${itemsMarkup}
-                    </div>
-                </div>
-            `;
-        }).join("");
     }
 };
 
