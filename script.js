@@ -4,9 +4,12 @@
 
 const SUPABASE_URL = "https://crcvqtkzpzjudxsagzdx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_poYElyzvYvx_pxAnUqk8PA_Pc9MLVOf";
+const SUPABASE_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 const INSTAGRAM_ORDER_URL = "https://ig.me/m/officialultimartgamestop";
 
 let supabaseClient;
+let supabaseLoaderPromise = null;
+let backgroundImageObserver = null;
 let currentUser = null;
 let renderGames = () => {};
 
@@ -68,11 +71,52 @@ const baseGamesData = [
 const categoryOrder = [...new Set(baseGamesData.map((game) => game.category))];
 let gamesData = baseGamesData.map((game) => ({ ...game }));
 
-try {
+const createSupabaseClient = () => {
+    if (supabaseClient || !window.supabase?.createClient) {
+        return supabaseClient || null;
+    }
+
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} catch (error) {
-    console.error("Supabase failed to load.", error);
-}
+    return supabaseClient;
+};
+
+const loadSupabaseClient = async () => {
+    if (supabaseClient) {
+        return supabaseClient;
+    }
+
+    if (window.supabase?.createClient) {
+        return createSupabaseClient();
+    }
+
+    if (!supabaseLoaderPromise) {
+        supabaseLoaderPromise = new Promise((resolve, reject) => {
+            const script = document.createElement("script");
+            script.src = SUPABASE_SCRIPT_URL;
+            script.async = true;
+            script.defer = true;
+            script.dataset.supabaseLoader = "true";
+
+            script.onload = () => {
+                try {
+                    resolve(createSupabaseClient());
+                } catch (error) {
+                    supabaseLoaderPromise = null;
+                    reject(error);
+                }
+            };
+
+            script.onerror = () => {
+                supabaseLoaderPromise = null;
+                reject(new Error("Supabase failed to load."));
+            };
+
+            document.head.appendChild(script);
+        });
+    }
+
+    return supabaseLoaderPromise;
+};
 
 const escapeHtml = (value = "") =>
     String(value)
@@ -129,14 +173,69 @@ const loadBackgroundImage = (element, candidates) => {
     tryCandidate(0);
 };
 
+const hydrateBackgroundImage = (element) => {
+    if (!element || element.dataset.bgLoaded === "true") {
+        return;
+    }
+
+    const rawCandidates = element.dataset.bgCandidates;
+    if (!rawCandidates) {
+        return;
+    }
+
+    let candidates = [];
+
+    try {
+        candidates = JSON.parse(rawCandidates);
+    } catch (error) {
+        console.error("Invalid image candidates.", error);
+    }
+
+    element.dataset.bgLoaded = "true";
+    delete element.dataset.bgCandidates;
+    loadBackgroundImage(element, candidates);
+};
+
+const queueBackgroundImage = (element, candidates) => {
+    if (!element || candidates.length === 0) {
+        return;
+    }
+
+    element.dataset.bgCandidates = JSON.stringify(candidates);
+
+    if (!("IntersectionObserver" in window)) {
+        hydrateBackgroundImage(element);
+        return;
+    }
+
+    if (!backgroundImageObserver) {
+        backgroundImageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                observer.unobserve(entry.target);
+                hydrateBackgroundImage(entry.target);
+            });
+        }, {
+            rootMargin: "250px 0px"
+        });
+    }
+
+    backgroundImageObserver.observe(element);
+};
+
 const OrderManager = {
     async getOrderHistory() {
-        if (!currentUser || !supabaseClient) {
+        const client = supabaseClient || await loadSupabaseClient().catch(() => null);
+
+        if (!currentUser || !client) {
             return [];
         }
 
         try {
-            const { data, error } = await supabaseClient
+            const { data, error } = await client
                 .from("orders")
                 .select(`
                     *,
@@ -159,14 +258,16 @@ const OrderManager = {
 
 const ProfileManager = {
     async loadProfile() {
-        if (!currentUser || !supabaseClient) {
+        const client = supabaseClient || await loadSupabaseClient().catch(() => null);
+
+        if (!currentUser || !client) {
             return;
         }
 
         let profileData = null;
 
         try {
-            const { data, error } = await supabaseClient
+            const { data, error } = await client
                 .from("user_profiles")
                 .select("*")
                 .eq("id", currentUser.id)
@@ -244,15 +345,20 @@ const initApp = () => {
     const loginModal = document.getElementById("loginModal");
     const loginGoogleBtn = document.getElementById("loginGoogleBtn");
     const loginStatus = document.getElementById("loginStatus");
+    let catalogHasRendered = false;
+    let authStateInitialized = false;
+    let authStateInitPromise = null;
 
     const buildCards = (grid, games) => {
+        const fragment = document.createDocumentFragment();
+
         games.forEach((game) => {
             const card = document.createElement("div");
             card.className = "game-card";
 
             const image = document.createElement("div");
             image.className = "game-image";
-            loadBackgroundImage(image, getGameImageCandidates(game));
+            queueBackgroundImage(image, getGameImageCandidates(game));
 
             const info = document.createElement("div");
             info.className = "game-info";
@@ -279,11 +385,15 @@ const initApp = () => {
 
             card.appendChild(image);
             card.appendChild(info);
-            grid.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        grid.appendChild(fragment);
     };
 
     renderGames = (term = "", sort = "popular") => {
+        catalogHasRendered = true;
+
         const normalizedTerm = term.toLowerCase().trim();
         const filtered = gamesData.filter((game) =>
             game.name.toLowerCase().includes(normalizedTerm)
@@ -298,6 +408,7 @@ const initApp = () => {
         noResults.classList.add("hidden");
 
         const gamesToRender = [...filtered];
+        const renderFragment = document.createDocumentFragment();
 
         if (sort === "price-asc") {
             gamesToRender.sort((a, b) => a.priceNum - b.priceNum);
@@ -308,8 +419,6 @@ const initApp = () => {
         } else if (sort === "za") {
             gamesToRender.sort((a, b) => b.name.localeCompare(a.name));
         }
-
-        catalogContainer.innerHTML = "";
 
         if (sort === "popular") {
             categoryOrder.forEach((category) => {
@@ -332,15 +441,45 @@ const initApp = () => {
 
                 section.appendChild(title);
                 section.appendChild(grid);
-                catalogContainer.appendChild(section);
+                renderFragment.appendChild(section);
             });
+            catalogContainer.replaceChildren(renderFragment);
             return;
         }
 
         const grid = document.createElement("div");
         grid.className = "game-grid";
         buildCards(grid, gamesToRender);
-        catalogContainer.appendChild(grid);
+        renderFragment.appendChild(grid);
+        catalogContainer.replaceChildren(renderFragment);
+    };
+
+    const scheduleInitialCatalogRender = () => {
+        const catalogSection = document.getElementById("catalog");
+
+        if (!catalogSection) {
+            return;
+        }
+
+        if (!("IntersectionObserver" in window)) {
+            renderGames();
+            return;
+        }
+
+        const catalogObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting || catalogHasRendered) {
+                    return;
+                }
+
+                renderGames(searchInput ? searchInput.value.toLowerCase().trim() : "", sortSelect ? sortSelect.value : "popular");
+                observer.disconnect();
+            });
+        }, {
+            rootMargin: "500px 0px"
+        });
+
+        catalogObserver.observe(catalogSection);
     };
 
     if (searchInput) {
@@ -425,7 +564,7 @@ const initApp = () => {
         });
     }
 
-    renderGames();
+    scheduleInitialCatalogRender();
 
     const header = document.getElementById("header");
     if (header) {
@@ -456,24 +595,11 @@ const initApp = () => {
     fadeElements.forEach((element) => observer.observe(element));
 
     if (profileBtn) {
-        profileBtn.addEventListener("click", () => {
+        profileBtn.addEventListener("click", async () => {
             document.getElementById("profilePage").classList.remove("hidden");
-            ProfileManager.loadProfile();
+            await ProfileManager.loadProfile();
         });
     }
-
-    const requireSupabase = (statusElement, fallbackMessage) => {
-        if (supabaseClient) {
-            return true;
-        }
-
-        if (statusElement) {
-            statusElement.textContent = fallbackMessage;
-            statusElement.className = "auth-status error";
-        }
-
-        return false;
-    };
 
     if (signInBtn) {
         signInBtn.addEventListener("click", () => {
@@ -487,9 +613,106 @@ const initApp = () => {
         });
     }
 
+    const applySessionState = (session) => {
+        currentUser = session?.user || null;
+
+        if (!currentUser) {
+            authButtons.classList.remove("hidden");
+            userProfile.classList.add("hidden");
+            signInModal.classList.add("hidden");
+            loginModal.classList.add("hidden");
+            basicInfoForm.classList.add("hidden");
+            return;
+        }
+
+        authButtons.classList.add("hidden");
+        userProfile.classList.remove("hidden");
+        userNameDisplay.textContent =
+            currentUser.user_metadata?.full_name ||
+            currentUser.email ||
+            "User";
+    };
+
+    const initializeAuthState = async () => {
+        if (authStateInitialized) {
+            return supabaseClient;
+        }
+
+        if (authStateInitPromise) {
+            return authStateInitPromise;
+        }
+
+        authStateInitPromise = (async () => {
+            try {
+                const client = await loadSupabaseClient();
+                authStateInitialized = true;
+
+                client.auth.getSession().then(({ data }) => {
+                    applySessionState(data?.session || null);
+                }).catch((error) => {
+                    console.error("Error getting session:", error);
+                });
+
+                client.auth.onAuthStateChange(async (event, session) => {
+                    applySessionState(session);
+
+                    if (event !== "SIGNED_IN" || !session?.user) {
+                        return;
+                    }
+
+                    try {
+                        const { data: existingProfile, error } = await client
+                            .from("user_profiles")
+                            .select("id")
+                            .eq("id", session.user.id)
+                            .maybeSingle();
+
+                        if (error) {
+                            throw error;
+                        }
+
+                        if (!existingProfile) {
+                            signUpEmail.value = session.user.email || "";
+                            signInModal.classList.remove("hidden");
+                            basicInfoForm.classList.remove("hidden");
+                            signInStatus.textContent = "";
+                            signInStatus.className = "auth-status";
+                        }
+                    } catch (error) {
+                        console.error("Profile check error:", error);
+                    }
+                });
+
+                return client;
+            } catch (error) {
+                console.error("Supabase failed to load.", error);
+                authStateInitPromise = null;
+                return null;
+            }
+        })();
+
+        return authStateInitPromise;
+    };
+
+    const requireSupabase = async (statusElement, fallbackMessage) => {
+        const client = await initializeAuthState();
+
+        if (client) {
+            return client;
+        }
+
+        if (statusElement) {
+            statusElement.textContent = fallbackMessage;
+            statusElement.className = "auth-status error";
+        }
+
+        return null;
+    };
+
     if (signInGoogleBtn) {
         signInGoogleBtn.addEventListener("click", async () => {
-            if (!requireSupabase(signInStatus, "Google sign-in is unavailable right now.")) {
+            const client = await requireSupabase(signInStatus, "Google sign-in is unavailable right now.");
+            if (!client) {
                 return;
             }
 
@@ -497,7 +720,7 @@ const initApp = () => {
             signInStatus.className = "auth-status loading";
 
             try {
-                const { error } = await supabaseClient.auth.signInWithOAuth({
+                const { error } = await client.auth.signInWithOAuth({
                     provider: "google",
                     options: {
                         redirectTo: buildAuthRedirect("signup")
@@ -527,7 +750,8 @@ const initApp = () => {
                 return;
             }
 
-            if (!currentUser || !requireSupabase(signInStatus, "Profile setup is unavailable right now.")) {
+            const client = await requireSupabase(signInStatus, "Profile setup is unavailable right now.");
+            if (!currentUser || !client) {
                 return;
             }
 
@@ -535,7 +759,7 @@ const initApp = () => {
             submitBasicInfoBtn.textContent = "Saving...";
 
             try {
-                const { error } = await supabaseClient
+                const { error } = await client
                     .from("user_profiles")
                     .upsert({
                         id: currentUser.id,
@@ -578,7 +802,8 @@ const initApp = () => {
 
     if (loginGoogleBtn) {
         loginGoogleBtn.addEventListener("click", async () => {
-            if (!requireSupabase(loginStatus, "Google login is unavailable right now.")) {
+            const client = await requireSupabase(loginStatus, "Google login is unavailable right now.");
+            if (!client) {
                 return;
             }
 
@@ -586,7 +811,7 @@ const initApp = () => {
             loginStatus.className = "auth-status loading";
 
             try {
-                const { error } = await supabaseClient.auth.signInWithOAuth({
+                const { error } = await client.auth.signInWithOAuth({
                     provider: "google",
                     options: {
                         redirectTo: buildAuthRedirect("login")
@@ -609,7 +834,9 @@ const initApp = () => {
             event.preventDefault();
             event.stopPropagation();
 
-            if (!supabaseClient) {
+            const client = await initializeAuthState();
+
+            if (!client) {
                 currentUser = null;
                 authButtons.classList.remove("hidden");
                 userProfile.classList.add("hidden");
@@ -620,7 +847,7 @@ const initApp = () => {
                 logoutBtn.disabled = true;
                 logoutBtn.innerHTML = '<i class="bx bx-loader"></i>';
 
-                const { error } = await supabaseClient.auth.signOut();
+                const { error } = await client.auth.signOut();
                 if (error) {
                     throw error;
                 }
@@ -636,63 +863,26 @@ const initApp = () => {
         });
     }
 
-    const applySessionState = (session) => {
-        currentUser = session?.user || null;
-
-        if (!currentUser) {
-            authButtons.classList.remove("hidden");
-            userProfile.classList.add("hidden");
-            signInModal.classList.add("hidden");
-            loginModal.classList.add("hidden");
-            basicInfoForm.classList.add("hidden");
+    const warmAuthAfterPaint = () => {
+        if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(() => {
+                initializeAuthState();
+            }, {
+                timeout: 2500
+            });
             return;
         }
 
-        authButtons.classList.add("hidden");
-        userProfile.classList.remove("hidden");
-        userNameDisplay.textContent =
-            currentUser.user_metadata?.full_name ||
-            currentUser.email ||
-            "User";
+        window.addEventListener("load", () => {
+            window.setTimeout(() => {
+                initializeAuthState();
+            }, 1200);
+        }, {
+            once: true
+        });
     };
 
-    if (supabaseClient) {
-        supabaseClient.auth.getSession().then(({ data }) => {
-            applySessionState(data?.session || null);
-        }).catch((error) => {
-            console.error("Error getting session:", error);
-        });
-
-        supabaseClient.auth.onAuthStateChange(async (event, session) => {
-            applySessionState(session);
-
-            if (event !== "SIGNED_IN" || !session?.user) {
-                return;
-            }
-
-            try {
-                const { data: existingProfile, error } = await supabaseClient
-                    .from("user_profiles")
-                    .select("id")
-                    .eq("id", session.user.id)
-                    .maybeSingle();
-
-                if (error) {
-                    throw error;
-                }
-
-                if (!existingProfile) {
-                    signUpEmail.value = session.user.email || "";
-                    signInModal.classList.remove("hidden");
-                    basicInfoForm.classList.remove("hidden");
-                    signInStatus.textContent = "";
-                    signInStatus.className = "auth-status";
-                }
-            } catch (error) {
-                console.error("Profile check error:", error);
-            }
-        });
-    }
+    warmAuthAfterPaint();
 };
 
 if (document.readyState === "loading") {
