@@ -14,8 +14,8 @@
     --glow-shadow-hover: 0 0 30px rgba(0, 240, 255, 0.4);
     
     /* Typography */
-    --font-heading: 'Oblata Display', sans-serif;
-    --font-body: 'Oblata Display', sans-serif;
+    --font-heading: 'Oblata Display', Georgia, serif;
+    --font-body: 'Oblata Display', 'Inter', system-ui, sans-serif;
     --font-classic: 'Inter', system-ui, sans-serif;
 }
 
@@ -37,6 +37,18 @@ body {
     font-size: 1.15rem;
     line-height: 1.6;
     overflow-x: hidden;
+}
+
+.custom-order,
+.how-to-buy,
+.catalog,
+.reviews-section,
+.review-trust-strip,
+.review-archive-section,
+.review-process-section,
+footer {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 900px;
 }
 
 ::selection {
