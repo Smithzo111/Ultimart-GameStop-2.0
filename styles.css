@@ -2457,3 +2457,90 @@ footer {
         font-size: 0.8rem;
     }
 }
+
+/* AdSense */
+.adsense-section {
+    padding: 20px 5% 56px;
+}
+
+.adsense-section--hidden {
+    display: none !important;
+}
+
+.adsense-shell {
+    margin: 0 auto;
+}
+
+.adsense-label {
+    display: none;
+    margin-bottom: 12px;
+    color: var(--text-muted);
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.72rem;
+    font-family: var(--font-classic);
+}
+
+.adsense-section--filled .adsense-shell {
+    padding: 18px;
+    border: 1px solid var(--glass-border);
+    border-radius: 24px;
+    background: rgba(15, 15, 15, 0.34);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.adsense-section--filled .adsense-label {
+    display: block;
+}
+
+.adsense-shell--wide {
+    max-width: 1120px;
+}
+
+.adsense-shell--article {
+    max-width: 820px;
+}
+
+.adsense-shell--relaxed {
+    max-width: 980px;
+}
+
+.adsense-shell--vertical {
+    max-width: 360px;
+}
+
+.adsense-shell--square {
+    max-width: 460px;
+}
+
+.adsense-shell .adsbygoogle {
+    display: block;
+    overflow: hidden;
+}
+
+ins.adsbygoogle[data-ad-status="unfilled"],
+ins.adsbygoogle[data-ad-status="unfill-optimized"] {
+    display: none !important;
+}
+
+@media (max-width: 600px) {
+    .adsense-section {
+        padding: 10px 5% 50px;
+    }
+
+    .adsense-section--filled .adsense-shell {
+        padding: 18px;
+        border-radius: 20px;
+    }
+
+    .adsense-shell--wide,
+    .adsense-shell--article,
+    .adsense-shell--relaxed,
+    .adsense-shell--vertical,
+    .adsense-shell--square {
+        max-width: 100%;
+    }
+}
