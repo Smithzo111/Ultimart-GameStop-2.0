@@ -1,5 +1,5 @@
 // ============================================
-// ULTIMART GAMESTOP - AUTH + STATIC CATALOG
+// GLITCHMART - AUTH + STATIC CATALOG
 // ============================================
 
 const SUPABASE_URL = "https://crcvqtkzpzjudxsagzdx.supabase.co";
