@@ -5,7 +5,7 @@
 const SUPABASE_URL = "https://crcvqtkzpzjudxsagzdx.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_poYElyzvYvx_pxAnUqk8PA_Pc9MLVOf";
 const SUPABASE_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-const INSTAGRAM_ORDER_URL = "https://ig.me/m/officialultimartgamestop";
+const INSTAGRAM_ORDER_URL = "https://ig.me/m/officialglitchmart";
 
 let supabaseClient;
 let supabaseLoaderPromise = null;
